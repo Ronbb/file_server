@@ -1,2 +1,4 @@
 upload
 dist
+*.exe
+pack

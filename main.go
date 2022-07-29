@@ -19,18 +19,24 @@ var (
 	current = ""
 	upload  = ""
 	dist    = ""
+	root    = flag.String("root", "", "where the files are")
 	port    = flag.Int("port", 8080, "listen to some port")
 )
 
 func init() {
+	flag.Parse()
+
 	executable, err := os.Executable()
 	if err != nil {
 		panic(err.Error())
 	}
 
 	current = filepath.Dir(executable)
+	if *root == "" {
+		root = &current
+	}
 	dist = filepath.Join(current, "dist")
-	upload = filepath.Join(current, "upload")
+	upload = filepath.Join(*root, "upload")
 
 	_, err = os.Stat(upload)
 	if err != nil {
@@ -43,8 +49,6 @@ func init() {
 			panic(err.Error())
 		}
 	}
-
-	flag.Parse()
 
 	println("For mian QAQ")
 }
@@ -80,7 +84,7 @@ func main() {
 
 	api.Get("/files", func(c *fiber.Ctx) error {
 		rel := c.Query("path")
-		abs := filepath.Join(string(current), rel)
+		abs := filepath.Join(*root, rel)
 		file, err := os.Open(abs)
 		if err != nil {
 			return err
