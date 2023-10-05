@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosProgressEvent } from "axios";
 
 export interface Item {
   name: string;
@@ -22,7 +22,7 @@ export const files = async (path: string) => {
 
 export const upload = async (
   file: File,
-  onUploadProgress?: (progressEvent: ProgressEvent) => void
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void
 ) => {
   const data = new FormData();
   data.append("file", file);

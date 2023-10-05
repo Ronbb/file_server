@@ -7,24 +7,21 @@
     "serve": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.6.0",
-    "@emotion/styled": "^11.6.0",
-    "@fontsource/roboto": "^4.5.1",
-    "@mui/icons-material": "^5.1.1",
-    "@mui/lab": "^5.0.0-alpha.55",
-    "@mui/material": "^5.1.1",
-    "@mui/styles": "^5.1.1",
-    "@mui/system": "^5.1.1",
-    "axios": "^0.24.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/roboto": "^5.0.8",
+    "@mui/icons-material": "^5.14.12",
+    "@mui/material": "^5.14.12",
+    "axios": "^1.5.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/node": "^16.11.7",
-    "@types/react": "^17.0.35",
-    "@types/react-dom": "^17.0.11",
-    "@vitejs/plugin-react": "^1.0.9",
-    "typescript": "^4.5.2",
-    "vite": "^2.6.14"
+    "@types/node": "^20.8.2",
+    "@types/react": "^18.2.25",
+    "@types/react-dom": "^18.2.10",
+    "@vitejs/plugin-react": "^4.1.0",
+    "typescript": "^5.2.2",
+    "vite": "^4.4.11"
   }
 }

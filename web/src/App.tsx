@@ -1,5 +1,4 @@
 import { ChangeEvent, FC, useCallback, useState } from "react";
-import { alpha } from "@mui/system";
 import styled from "@mui/material/styles/styled";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -20,6 +19,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Files from "./Files";
 import { upload } from "./api";
 import { useMemo } from "react";
+import { alpha } from "@mui/material";
 
 const HiddenInput = styled("input")({
   display: "none",
@@ -87,6 +87,9 @@ const App: FC = () => {
 
     upload(file, (event) => {
       setUploadState((uploadState) => {
+        if (!event.total) {
+          return { ...uploadState, progress: 0 };
+        }
         return { ...uploadState, progress: event.loaded / event.total };
       });
     })
