@@ -1,13 +1,11 @@
-import { ChangeEvent, FC, useCallback, useState } from "react";
+import { ChangeEvent, FC, useCallback, useRef, useState } from "react";
 import styled from "@mui/material/styles/styled";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Toolbar from "@mui/material/Toolbar";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
-import InputBase from "@mui/material/InputBase";
 import MenuIcon from "@mui/icons-material/Menu";
-import SearchIcon from "@mui/icons-material/Search";
 import Card from "@mui/material/Card";
 import Fab from "@mui/material/Fab";
 import CardContent from "@mui/material/CardContent";
@@ -18,62 +16,29 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import Files from "./Files";
 import { upload } from "./api";
-import { useMemo } from "react";
-import { alpha } from "@mui/material";
+import { SearchBar, SearchProvider } from "./SearchBar";
+import { List, ListItem, SnackbarContent, Stack } from "@mui/material";
 
 const HiddenInput = styled("input")({
   display: "none",
 });
 
-const Search = styled("div")(({ theme }) => ({
-  position: "relative",
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
-  "&:hover": {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
-  },
-  marginLeft: 0,
-  width: "100%",
-  [theme.breakpoints.up("sm")]: {
-    marginLeft: theme.spacing(1),
-    width: "auto",
-  },
-}));
-
-const SearchIconWrapper = styled("div")(({ theme }) => ({
-  padding: theme.spacing(0, 2),
-  height: "100%",
-  position: "absolute",
-  pointerEvents: "none",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-}));
-
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: "inherit",
-  "& .MuiInputBase-input": {
-    padding: theme.spacing(1, 1, 1, 0),
-    paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-    transition: theme.transitions.create("width"),
-    width: "100%",
-    [theme.breakpoints.up("sm")]: {
-      width: "16ch",
-      "&:focus": {
-        width: "24ch",
-      },
-    },
-  },
-}));
-
 const App: FC = () => {
-  const [uploadState, setUploadState] = useState<{
-    loading: boolean;
-    progress: number;
-    show: boolean;
-    file?: File;
-    error?: any;
-  }>({ loading: false, progress: 0, show: false });
+  const [search, setSearch] = useState<string>("");
+  const [uploadIds, setUploadIds] = useState<number[]>([]);
+  const [uploadState, setUploadState] = useState<
+    Record<
+      number,
+      {
+        uploading: boolean;
+        progress: number;
+        file?: File;
+        error?: any;
+      }
+    >
+  >({});
+
+  const nextId = useRef(0);
 
   const onUpload = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.item(0);
@@ -81,43 +46,49 @@ const App: FC = () => {
       return;
     }
 
+    const id = nextId.current++;
+
+    setUploadIds((uploadIds) => {
+      return [...uploadIds, id];
+    });
+
     setUploadState((uploadState) => {
-      return { ...uploadState, loading: true, progress: 0, show: true, file };
+      return {
+        ...uploadState,
+        [id]: { uploading: true, progress: 0, file },
+      };
     });
 
     upload(file, (event) => {
       setUploadState((uploadState) => {
         if (!event.total) {
-          return { ...uploadState, progress: 0 };
+          return { ...uploadState, [id]: { ...uploadState[id], progress: 0 } };
         }
-        return { ...uploadState, progress: event.loaded / event.total };
+        return {
+          ...uploadState,
+          [id]: { ...uploadState[id], progress: event.loaded / event.total },
+        };
       });
     })
       .catch((error) => {
         setUploadState((uploadState) => {
-          return { ...uploadState, error };
+          return {
+            ...uploadState,
+            [id]: { ...uploadState[id], error },
+          };
         });
       })
       .finally(() => {
         setUploadState((uploadState) => {
-          return { ...uploadState, loading: false };
+          return {
+            ...uploadState,
+            [id]: { ...uploadState[id], uploading: false },
+          };
         });
       });
   }, []);
 
-  const hideSnackBar = useMemo(() => {
-    if (uploadState.loading) {
-      return undefined;
-    }
-
-    return () => {
-      setUploadState((uploadState) => {
-        return { ...uploadState, show: false };
-      });
-    };
-  }, [uploadState.loading]);
-
-  return (
+  const content = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box>
         <AppBar position="sticky">
@@ -139,45 +110,54 @@ const App: FC = () => {
             >
               FileServer
             </Typography>
-            <Search>
-              <SearchIconWrapper>
-                <SearchIcon />
-              </SearchIconWrapper>
-              <StyledInputBase
-                placeholder="假装是个搜索框"
-                inputProps={{ "aria-label": "search" }}
-              />
-            </Search>
+            <SearchBar />
           </Toolbar>
         </AppBar>
         <Snackbar
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-          open={uploadState.show}
-          onClose={hideSnackBar}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          open={uploadIds.length > 0}
+          sx={{ m: 8 }}
         >
-          <Alert
-            onClose={hideSnackBar}
-            severity={
-              uploadState.error
-                ? "error"
-                : uploadState.loading
-                ? "info"
-                : "success"
-            }
-            icon={
-              !uploadState.error && uploadState.loading ? (
-                <CircularProgress size="1em" />
-              ) : undefined
-            }
-            sx={{ width: "100%" }}
-          >
-            {uploadState.loading
-              ? `Uploading ${uploadState.file?.name || ""} ${(
-                  uploadState.progress * 100
-                ).toFixed(2)}%`
-              : `Uploaded ${uploadState.file?.name || ""}`}
-          </Alert>
+          <List>
+            {uploadIds.map((id) => {
+              const item = uploadState[id];
+              if (!item) {
+                return null;
+              }
+              const hideSnackBar = item.uploading
+                ? undefined
+                : () => {
+                    setUploadIds((uploadIds) => {
+                      return uploadIds.filter((i) => id !== i);
+                    });
+                  };
+
+              return (
+                <ListItem>
+                  <Alert
+                    onClose={hideSnackBar}
+                    severity={
+                      item.error ? "error" : item.uploading ? "info" : "success"
+                    }
+                    icon={
+                      !item.error && item.uploading ? (
+                        <CircularProgress size="1em" />
+                      ) : undefined
+                    }
+                    sx={{ marginLeft: "auto" }}
+                  >
+                    {item.uploading
+                      ? `Uploading ${item.file?.name || ""} ${(
+                          item.progress * 100
+                        ).toFixed(2)}%`
+                      : `Uploaded ${item.file?.name || ""}`}
+                  </Alert>
+                </ListItem>
+              );
+            })}
+          </List>
         </Snackbar>
+
         <label htmlFor="contained-button-file">
           <HiddenInput
             accept="*"
@@ -191,28 +171,27 @@ const App: FC = () => {
               position: "fixed",
               bottom: 32,
               right: 32,
-              pointerEvents: uploadState.loading ? "none" : "all",
             }}
             color="primary"
             aria-label="upload"
             component="span"
           >
-            {uploadState.loading ? (
-              <CircularProgress size="2em" color="inherit" />
-            ) : (
-              <Upload />
-            )}
+            <Upload />
           </Fab>
         </label>
       </Box>
-      <Box p={4} sx={{ flexGrow: 1 }}>
-        <Card sx={{ minWidth: 275, minHeight: "100%" }}>
-          <CardContent>
+      <Box p={4} sx={{ flexGrow: 1, overflow: "hidden" }}>
+        <Card sx={{ minWidth: 275, height: "100%" }}>
+          <CardContent sx={{ overflow: "auto", height: "100%" }}>
             <Files />
           </CardContent>
         </Card>
       </Box>
     </Box>
+  );
+
+  return (
+    <SearchProvider value={{ search, setSearch }}>{content}</SearchProvider>
   );
 };
 

@@ -17,6 +17,37 @@ import FileDownload from "@mui/icons-material/FileDownload";
 import Folder from "@mui/icons-material/Folder";
 
 import { files, Data, Item } from "./api";
+import { useSearch } from "./SearchBar";
+
+const File: FC<{
+  item: Item;
+  onClickItem: (item: Item) => void;
+  path: string[];
+}> = ({ item, onClickItem, path }) => {
+  return (
+    <ListItem key={item.name}>
+      {item.isDir ? (
+        <ListItemButton onClick={() => onClickItem(item)}>
+          <ListItemIcon>
+            <Folder />
+          </ListItemIcon>
+          <ListItemText primary={item.name} />
+        </ListItemButton>
+      ) : (
+        <ListItemButton
+          component="a"
+          download
+          href={`/api/files?path=${[...path, item.name].join("/")}`}
+        >
+          <ListItemIcon>
+            <FileDownload />
+          </ListItemIcon>
+          <ListItemText primary={item.name} />
+        </ListItemButton>
+      )}
+    </ListItem>
+  );
+};
 
 const Files: FC = () => {
   const [requestPath, setRequestPath] = useState<string[]>([]);
@@ -25,6 +56,7 @@ const Files: FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [showError, setShowError] = useState<boolean>(false);
+  const { search } = useSearch();
 
   useEffect(() => {
     setLoading(true);
@@ -60,8 +92,30 @@ const Files: FC = () => {
     setRequestPath(path);
   }, []);
 
+  const tester =
+    search.length > 2 && search.endsWith("/") && search.startsWith("/")
+      ? RegExp(search.substring(1, search.length - 1))
+      : search;
+  let ignored = 0;
+  let items =
+    data?.items?.filter((item) => {
+      if (search) {
+        if (
+          (tester instanceof RegExp && tester.test(item.name)) ||
+          (typeof tester == "string" && item.name.includes(tester))
+        ) {
+          return true;
+        } else {
+          ignored++;
+          return false;
+        }
+      }
+
+      return true;
+    }) ?? [];
+
   return (
-    <Box>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Backdrop
         sx={{
           color: "primary",
@@ -110,30 +164,17 @@ const Files: FC = () => {
         </Breadcrumbs>
       </Box>
       <Divider />
-      <Box>
+      <Box sx={{ flexGrow: 1, height: "100%", overflow: "auto" }}>
         <List>
-          {data?.items?.map((item) => (
-            <ListItem key={item.name}>
-              {item.isDir ? (
-                <ListItemButton onClick={() => onClickItem(item)}>
-                  <ListItemIcon>
-                    <Folder />
-                  </ListItemIcon>
-                  <ListItemText primary={item.name} />
-                </ListItemButton>
-              ) : (
-                <ListItemButton
-                  component="a"
-                  download
-                  href={`/api/files?path=${[...path, item.name].join("/")}`}
-                >
-                  <ListItemIcon>
-                    <FileDownload />
-                  </ListItemIcon>
-                  <ListItemText primary={item.name} />
-                </ListItemButton>
-              )}
+          {search && (
+            <ListItem>
+              <Alert severity="info" sx={{ width: "100%" }}>
+                search: {tester.toString()}, ignored: {ignored}
+              </Alert>
             </ListItem>
+          )}
+          {items.map((item) => (
+            <File item={item} onClickItem={onClickItem} path={path}></File>
           ))}
         </List>
       </Box>
