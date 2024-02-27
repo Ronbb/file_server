@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"log"
@@ -8,7 +9,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -58,8 +61,9 @@ type Data struct {
 }
 
 type Item struct {
-	Name  string `json:"name"`
-	IsDir bool   `json:"isDir"`
+	Name         string    `json:"name"`
+	ModifiedTime time.Time `json:"modifiedTime"`
+	IsDir        bool      `json:"isDir"`
 }
 
 func main() {
@@ -108,11 +112,20 @@ func main() {
 		items := []Item{}
 
 		for _, rawItem := range rawData {
+			info, err := rawItem.Info()
+			if err != nil {
+				continue
+			}
 			items = append(items, Item{
-				Name:  rawItem.Name(),
-				IsDir: rawItem.IsDir(),
+				Name:         rawItem.Name(),
+				IsDir:        rawItem.IsDir(),
+				ModifiedTime: info.ModTime(),
 			})
 		}
+
+		slices.SortFunc(items, func(a, b Item) int {
+			return -cmp.Compare(a.Name, b.Name)
+		})
 
 		return c.JSON(&Data{items})
 	})
