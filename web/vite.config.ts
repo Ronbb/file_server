@@ -5,12 +5,13 @@ import react from "@vitejs/plugin-react";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: "/file-server",
   build: {
     outDir: join(__dirname, "..", "dist"),
   },
   server: {
     proxy: {
-      "/api": {
+      "/file-server/api": {
         target: "http://localhost:8080",
       },
     },

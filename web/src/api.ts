@@ -9,8 +9,8 @@ export interface Data {
   items: Item[];
 }
 
-export const files = async (path: string) => {
-  const response = await axios.get("/api/files", {
+export const file = async (path: string) => {
+  const response = await axios.get("/file-server/api/file", {
     params: {
       path,
     },
@@ -27,7 +27,7 @@ export const upload = async (
   const data = new FormData();
   data.append("file", file);
 
-  const response = await axios.post("/api/upload", data, {
+  const response = await axios.post("/file-server/api/upload", data, {
     maxBodyLength: 4 * 1024 * 1024,
     onUploadProgress: onUploadProgress,
   });

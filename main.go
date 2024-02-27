@@ -72,17 +72,17 @@ func main() {
 
 	app.Use(recover.New())
 
-	app.All("/*.js", func(ctx *fiber.Ctx) error {
+	app.All("/file-server/*.js", func(ctx *fiber.Ctx) error {
 		ctx.Set(fiber.HeaderContentType, "application/javascript")
 		return ctx.Next()
 	})
-	app.Static("/", dist, fiber.Static{
+	app.Static("/file-server", dist, fiber.Static{
 		Compress: true,
 	})
 
-	api := app.Group("/api", logger.New())
+	api := app.Group("/file-server/api", logger.New())
 
-	api.Get("/files", func(c *fiber.Ctx) error {
+	api.Get("/file", func(c *fiber.Ctx) error {
 		rel := c.Query("path")
 		abs := filepath.Join(*root, rel)
 		file, err := os.Open(abs)

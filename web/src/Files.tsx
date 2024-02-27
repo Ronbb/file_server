@@ -16,7 +16,7 @@ import Alert from "@mui/material/Alert";
 import FileDownload from "@mui/icons-material/FileDownload";
 import Folder from "@mui/icons-material/Folder";
 
-import { files, Data, Item } from "./api";
+import { file, Data, Item } from "./api";
 import { useSearch } from "./SearchBar";
 
 const File: FC<{
@@ -37,7 +37,7 @@ const File: FC<{
         <ListItemButton
           component="a"
           download
-          href={`/api/files?path=${[...path, item.name].join("/")}`}
+          href={`/file-server/api/file?path=${[...path, item.name].join("/")}`}
         >
           <ListItemIcon>
             <FileDownload />
@@ -61,7 +61,7 @@ const Files: FC = () => {
   useEffect(() => {
     setLoading(true);
     const next = requestPath.join("/");
-    files(next)
+    file(next)
       .then((data) => {
         data.items = data.items.sort((item) => (item.isDir ? -1 : 1));
         return data;
