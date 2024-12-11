@@ -1,3 +1,19 @@
 {
-  "cSpell.words": ["gofiber", "mian", "pkger", "roboto", "vite", "vitejs"]
+  "cSpell.spellCheckOnlyWorkspaceFiles": true,
+  "cSpell.words": [
+    "gofiber",
+    "iconify",
+    "magnifer",
+    "mian",
+    "nextui",
+    "pkger",
+    "roboto",
+    "tseslint",
+    "usehooks",
+    "vite",
+    "vitejs"
+  ],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  }
 }

@@ -1,18 +1,20 @@
 import { defineConfig } from "vite";
-import { join } from "path";
 import react from "@vitejs/plugin-react";
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  base: "/file-server",
-  build: {
-    outDir: join(__dirname, "..", "dist"),
-  },
+  base: "/file-server/",
+  plugins: [
+    react({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", {}]],
+      },
+    }),
+  ],
   server: {
     proxy: {
-      "/file-server/api": {
-        target: "http://localhost:8080",
+      "/file-server/api/file": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
       },
     },
   },
