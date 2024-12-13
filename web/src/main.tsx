@@ -1,17 +1,17 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { NextUIProvider } from "@nextui-org/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HashRouter } from "react-router";
 
-import { App } from "./App.tsx";
+import { Root } from "./Root.tsx";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <NextUIProvider>
+    <HashRouter>
       <QueryClientProvider client={new QueryClient()}>
-        <App />
+        <Root />
       </QueryClientProvider>
-    </NextUIProvider>
+    </HashRouter>
   </StrictMode>
 );

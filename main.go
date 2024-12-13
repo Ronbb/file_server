@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"embed"
 	"flag"
 	"fmt"
 	"io"
@@ -22,12 +23,15 @@ import (
 )
 
 var (
-	current = ""
-	upload  = ""
-	dist    = ""
-	root    = flag.String("root", "", "where the files are")
-	port    = flag.Int("port", 8080, "listen to some port")
+	current      = ""
+	upload       = ""
+	lastModified = ""
+	root         = flag.String("root", "", "where the files are")
+	port         = flag.Int("port", 8080, "listen to some port")
 )
+
+//go:embed file-server/*
+var em embed.FS
 
 func init() {
 	flag.Parse()
@@ -37,11 +41,17 @@ func init() {
 		panic(err.Error())
 	}
 
+	info, err := os.Stat(executable)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	lastModified = info.ModTime().Format(time.RFC1123)
+
 	current = filepath.Dir(executable)
 	if *root == "" {
 		root = &current
 	}
-	dist = filepath.Join(current, "dist")
 	upload = filepath.Join(*root, "upload")
 
 	_, err = os.Stat(upload)
@@ -79,14 +89,6 @@ func main() {
 	})
 
 	app.Use(recover.New())
-
-	app.All("/file-server/*.js", func(c fiber.Ctx) error {
-		c.Set(fiber.HeaderContentType, "application/javascript")
-		return c.Next()
-	})
-	app.Get("/file-server/*", static.New(dist, static.Config{
-		Compress: true,
-	}))
 
 	api := app.Group("/file-server/api", logger.New())
 
@@ -176,6 +178,10 @@ func main() {
 		return nil
 	})
 
+	api.All("/logout", func(c fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	})
+
 	safeApi := api.Group("", basicauth.New(basicauth.Config{
 		Authorizer: func(user, pass string) bool {
 			if user == "direct" && pass == "Direct//D" {
@@ -239,6 +245,22 @@ func main() {
 		return nil
 	})
 
+	app.All("/file-server/*.js", func(c fiber.Ctx) error {
+		c.Set(fiber.HeaderContentType, "application/javascript")
+		return c.Next()
+	})
+
+	app.Get("/file-server/*", static.New("BAD", static.Config{
+		FS:       em,
+		Compress: true,
+		ModifyResponse: func(c fiber.Ctx) error {
+			if c.Response().StatusCode() == fiber.StatusOK {
+				c.Response().Header.Set("Last-Modified", lastModified)
+			}
+			return nil
+		},
+	}))
+
 	log.Fatal(app.Listen(net.JoinHostPort("", fmt.Sprint(*port))))
 }
 
@@ -253,7 +275,12 @@ func CheckNotDelete(abs string) error {
 			return fiber.ErrForbidden
 		}
 
-		abs = filepath.Dir(abs)
+		next := filepath.Dir(abs)
+		if next == abs {
+			break
+		}
+
+		abs = next
 	}
 	return nil
 }
@@ -266,43 +293,12 @@ func CreateZipFromFolder(folderPath string) (io.Reader, error) {
 		defer pw.Close()
 		defer zipWriter.Close()
 
-		err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
+		f := os.DirFS(folderPath)
 
-			relPath, err := filepath.Rel(folderPath, path)
-			if err != nil {
-				return err
-			}
-
-			if info.IsDir() {
-				return nil
-			}
-
-			header, err := zip.FileInfoHeader(info)
-			if err != nil {
-				return err
-			}
-			header.Name = relPath
-			header.Method = zip.Store
-
-			writer, err := zipWriter.CreateHeader(header)
-			if err != nil {
-				return err
-			}
-
-			file, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			_, err = io.Copy(writer, file)
-			return err
-		})
+		err := zipWriter.AddFS(f)
 		if err != nil {
 			pw.CloseWithError(err)
+			return
 		}
 	}()
 
