@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math"
 	"net"
@@ -25,7 +26,7 @@ import (
 var (
 	current      = ""
 	upload       = ""
-	lastModified = ""
+	lastModified = time.Time{}
 	root         = flag.String("root", "", "where the files are")
 	port         = flag.Int("port", 8080, "listen to some port")
 )
@@ -46,12 +47,13 @@ func init() {
 		panic(err.Error())
 	}
 
-	lastModified = info.ModTime().Format(time.RFC1123)
+	lastModified = info.ModTime()
 
 	current = filepath.Dir(executable)
 	if *root == "" {
 		root = &current
 	}
+	*root = filepath.Clean(*root)
 	upload = filepath.Join(*root, "upload")
 
 	_, err = os.Stat(upload)
@@ -80,6 +82,42 @@ type Item struct {
 	IsDirectory  bool      `json:"isDirectory"`
 }
 
+type staticFS struct {
+	embed.FS
+}
+
+type staticFile struct {
+	fs.File
+}
+
+type staticStat struct {
+	fs.FileInfo
+}
+
+func (s staticFS) Open(name string) (fs.File, error) {
+	f, err := s.FS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return &staticFile{f}, nil
+}
+
+func (s *staticFile) Stat() (fs.FileInfo, error) {
+	stat, err := s.File.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return &staticStat{stat}, nil
+}
+
+func (s *staticFile) Seek(offset int64, whence int) (int64, error) {
+	return s.File.(io.Seeker).Seek(offset, whence)
+}
+
+func (s *staticStat) ModTime() time.Time {
+	return lastModified
+}
+
 func main() {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c fiber.Ctx, err error) error {
@@ -96,6 +134,11 @@ func main() {
 		rel := c.Query("path")
 		download := fiber.Query[bool](c, "download")
 		abs := filepath.Join(*root, rel)
+		err := CheckFileInRoot(abs)
+		if err != nil {
+			return err
+		}
+
 		file, err := os.Open(abs)
 		if err != nil {
 			return err
@@ -197,12 +240,23 @@ func main() {
 		abs := filepath.Join(*root, rel)
 		dest := c.Query("dest")
 
-		err := CheckNotDelete(abs)
+		err := CheckFileInRoot(abs)
 		if err != nil {
 			return err
 		}
 
-		err = os.Rename(abs, filepath.Join(*root, dest))
+		dest = filepath.Join(*root, dest)
+		err = CheckFileInRoot(dest)
+		if err != nil {
+			return err
+		}
+
+		err = CheckNotDelete(abs)
+		if err != nil {
+			return err
+		}
+
+		err = os.Rename(abs, dest)
 		if err != nil {
 			return err
 		}
@@ -216,7 +270,12 @@ func main() {
 		rel := c.Query("path")
 		abs := filepath.Join(*root, rel)
 
-		err := CheckNotDelete(abs)
+		err := CheckFileInRoot(abs)
+		if err != nil {
+			return err
+		}
+
+		err = CheckNotDelete(abs)
 		if err != nil {
 			return err
 		}
@@ -251,17 +310,18 @@ func main() {
 	})
 
 	app.Get("/file-server/*", static.New("BAD", static.Config{
-		FS:       em,
+		FS:       staticFS{em},
 		Compress: true,
-		ModifyResponse: func(c fiber.Ctx) error {
-			if c.Response().StatusCode() == fiber.StatusOK {
-				c.Response().Header.Set("Last-Modified", lastModified)
-			}
-			return nil
-		},
 	}))
 
 	log.Fatal(app.Listen(net.JoinHostPort("", fmt.Sprint(*port))))
+}
+
+func CheckFileInRoot(abs string) error {
+	if !strings.HasPrefix(filepath.Clean(abs), *root) {
+		return fiber.ErrForbidden
+	}
+	return nil
 }
 
 func CheckNotDelete(abs string) error {
