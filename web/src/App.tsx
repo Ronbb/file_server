@@ -23,7 +23,6 @@ import {
 } from "@nextui-org/react";
 import {
   ArrowDownAZ,
-  ArrowUpToLine,
   ArrowUpZA,
   Download,
   File,
@@ -114,7 +113,6 @@ export const App = () => {
   >([]);
   const [showUpload, setShowUpload] = useState(false);
 
-  const mainRef = useRef<HTMLDivElement>(null);
   const downloadRef = useRef<HTMLAnchorElement>(null);
   const moveRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -733,10 +731,7 @@ export const App = () => {
         </NavbarContent>
       </Navbar>
       <main className="flex flex-col w-full h-[calc(100%-4rem)] items-center pb-4 overflow-auto">
-        <div
-          ref={mainRef}
-          className="max-w-screen-2xl w-full h-full overflow-auto"
-        >
+        <div className="max-w-screen-2xl w-full h-full overflow-auto">
           <Table
             shadow="none"
             isStriped
@@ -777,18 +772,6 @@ export const App = () => {
           </Table>
         </div>
       </main>
-      <div className="absolute right-16 bottom-16">
-        <Button
-          onPress={() => {
-            mainRef.current?.scrollTo({ top: 0 });
-          }}
-          isIconOnly
-          size="lg"
-          radius="full"
-        >
-          <ArrowUpToLine />
-        </Button>
-      </div>
       {isDragging &&
         createPortal(
           <motion.div
